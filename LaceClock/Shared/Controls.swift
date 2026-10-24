@@ -25,6 +25,20 @@ struct GlassChoice<T: Hashable>: View {
     private let h: CGFloat = 24, inset: CGFloat = 1.5
     private var segW: CGFloat { max(64, CGFloat(options.map { $0.1.count }.max() ?? 2) * 13 + 34) }
     private var index: Int { pending ?? options.firstIndex { $0.0 == selection } ?? 0 }
+    /// At rest the chosen label shows white on the blue pill; while the lens is held, every label shows plain.
+    private func chosenShown(_ i: Int) -> Bool { i == index && !lens }
+
+    private func labels(weight: Font.Weight, color: Color, shown: @escaping (Int) -> Bool) -> some View {
+        HStack(spacing: 0) {
+            ForEach(options.indices, id: \.self) { i in
+                Text(options[i].1)
+                    .font(.system(size: 13, weight: weight))
+                    .foregroundStyle(color)
+                    .opacity(shown(i) ? 1 : 0)
+                    .frame(width: segW, height: h)
+            }
+        }
+    }
     private var track: Color { scheme == .dark ? Color(white: 0.22) : Color(red: 238 / 255, green: 238 / 255, blue: 240 / 255) }
 
     var body: some View {
@@ -34,15 +48,10 @@ struct GlassChoice<T: Hashable>: View {
         ZStack(alignment: .leading) {
             // everything the glass bends sits underneath it: the track and the labels
             Capsule().fill(track).frame(width: w * n, height: h)
-            HStack(spacing: 0) {
-                ForEach(options.indices, id: \.self) { i in
-                    Text(options[i].1)
-                        .font(.system(size: 13, weight: i == index ? .semibold : .medium))
-                        .foregroundStyle(Color.primary.opacity(i == index ? 1 : 0.85))
-                        .opacity(i == index && !lens ? 0 : 1)   // at rest the chosen label sits on top of the glass, white
-                        .frame(width: w, height: h)
-                }
-            }
+            // every label stays where it is, with its own text and weight: being chosen only crossfades it, in place,
+            // into its white twin on the blue pill (a label that changed weight, or one white label that slid over
+            // and changed its text, would re-set its letters mid-motion)
+            labels(weight: .medium, color: Color.primary.opacity(0.85)) { !chosenShown($0) }
             // the bubble is one piece of real system Liquid Glass: at rest blue-tinted glass, pressed a clear lens
             // grown by its real size (never a scale transform), so it stays a true pill with round ends
             let gw = lens ? pillW * 1.13 : pillW
@@ -60,12 +69,7 @@ struct GlassChoice<T: Hashable>: View {
                     .opacity(lens ? 1 : 0)
             }
             .offset(x: cx - gw / 2)
-            Text(options[index].1)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: w, height: h)
-                .offset(x: CGFloat(index) * w)
-                .opacity(lens ? 0 : 1)
+            labels(weight: .semibold, color: .white) { chosenShown($0) }
                 .allowsHitTesting(false)
         }
         .frame(width: w * n, height: h)
@@ -243,7 +247,7 @@ struct ThemePicker: View {
                         .clipShape(.rect(cornerRadius: 12))
                         .padding(4)
                         .glassEffect(on ? .regular.tint(glassBlue) : .regular, in: .rect(cornerRadius: 16))
-                        Text(t.title).font(.caption.weight(on ? .semibold : .regular)).foregroundStyle(on ? .primary : .secondary)
+                        Text(t.title).font(.caption.weight(.medium)).foregroundStyle(on ? .primary : .secondary)   // one weight: changing it mid-animation re-sets the letters
                     }
                 }
                 .buttonStyle(.plain)
@@ -305,7 +309,7 @@ struct WeaveSections: View {
                 }
                 Toggle("포스터화", isOn: $settings.lace.poster)
                 if settings.lace.poster { slider("포스터화 강도", $settings.lace.flat, 0...1, ticks: [(0, "약하게"), (0.25, ""), (0.5, "기본"), (0.75, ""), (1, "강하게")]) }
-                ChoiceRow(title: "디테일", selection: $settings.lace.read, options: [(0, "섬세"), (1, "부드럽게"), (2, "굵게")])
+                ChoiceRow(title: "디테일", selection: $settings.lace.read, options: [(0, "섬세하게"), (1, "부드럽게"), (2, "굵게")])
                 ChoiceRow(title: "패턴 기준", selection: $settings.lace.side, options: [(0, "자동"), (1, "밝은 쪽"), (2, "어두운 쪽")])
             } header: {
                 HStack {
@@ -324,7 +328,7 @@ struct WeaveSections: View {
                 slider("모서리 질감", $settings.lace.hand, 0...14, ticks: [(0, "매끈"), (3.5, ""), (7, "기본"), (10.5, ""), (14, "거칠게")])
             }
             Section("모티프") {
-                ChoiceRow(title: "채움", selection: $settings.lace.fill, options: [(0, "성글게"), (1, "중간"), (2, "빽빽")])
+                ChoiceRow(title: "채움", selection: $settings.lace.fill, options: [(0, "성글게"), (1, "중간"), (2, "빽빽하게")])
                 ChoiceRow(title: "윤곽선", selection: $settings.lace.gimp, options: [(0, "없음"), (1, "얇게"), (2, "두껍게")])
                 ChoiceRow(title: "광택", selection: $settings.lace.light, options: [(0, "무광"), (1, "새틴"), (2, "유광")])
                 ChoiceRow(title: "품질", selection: $settings.laceQuality, options: [(.preview, "빠르게"), (.max, "최고")])
