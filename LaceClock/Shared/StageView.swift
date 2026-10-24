@@ -10,12 +10,14 @@ struct StageView: View {
     var referenceHeight: CGFloat?      // the real screen's height; nil = this canvas is the screen
     var revealAt: CFTimeInterval = 0
     var paused = false
+    var pausesWhenHidden = false
 
     var body: some View {
         GeometryReader { geo in
             LaceStage(inputs: StageInputs(canvas: geo.size, unit: referenceHeight.map { geo.size.height / $0 } ?? 1,
                                           backdrop: backdrop, tile: tile, tileID: tileID,
-                                          settings: settings, revealAt: revealAt, paused: paused))
+                                          settings: settings, revealAt: revealAt, paused: paused,
+                                          pausesWhenHidden: pausesWhenHidden))
         }
     }
 }

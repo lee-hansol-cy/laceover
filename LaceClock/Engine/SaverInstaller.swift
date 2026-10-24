@@ -19,6 +19,13 @@ enum SaverInstaller {
         NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.ScreenSaver.Engine.legacyScreenSaver").forEach { $0.terminate() }
     }
 
+    /// macOS 27 reuses the saver it loaded the last time the Screen Saver panel was open unless the Screen Savers
+    /// folder changed since; a reused saver's preview never reaches the screen, and its Options… sheet can't appear.
+    /// Called whenever a preview starts, so the next visit to the panel loads the saver afresh.
+    static func markChanged() {
+        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: installed.deletingLastPathComponent().path)
+    }
+
     static func openSystemSettings() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.ScreenSaver-Settings.extension")!)
     }

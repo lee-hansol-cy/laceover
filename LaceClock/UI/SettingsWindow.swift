@@ -67,7 +67,7 @@ struct PreviewStage: View {
     var body: some View {
         let screen = NSScreen.main?.frame.size ?? CGSize(width: 1512, height: 982)
         StageView(settings: model.settings, tile: model.lace.tile, tileID: model.lace.tileID,
-                  backdrop: backdrop, referenceHeight: screen.height)
+                  backdrop: backdrop, referenceHeight: screen.height, pausesWhenHidden: true)
             .aspectRatio(screen.width / screen.height, contentMode: .fit)
             .frame(maxHeight: 340)
             .clipShape(.rect(cornerRadius: 14))

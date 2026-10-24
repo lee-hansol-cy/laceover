@@ -126,13 +126,14 @@ final class ClockPass {
         m.bytes.withUnsafeBytes { maskTex?.replace(region: MTLRegionMake2D(0, 0, m.w, m.h), mipmapLevel: 0, withBytes: $0.baseAddress!, bytesPerRow: m.w * 4) }
     }
 
-    /// Short: "Sat, Oct 24".
-    static func dateText(_ date: Date) -> String {
+    /// Short: "Sat, Oct 24". Asked for every frame, so the formatter is made once.
+    static func dateText(_ date: Date) -> String { dateFormatter.string(from: date) }
+    private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US")
         f.setLocalizedDateFormatFromTemplate("EEEMMMd")
-        return f.string(from: date)
-    }
+        return f
+    }()
 
     static func timeText(_ date: Date, h24: Bool, seconds: Bool) -> (hm: String, sec: String?) {
         let c = Calendar.current.dateComponents([.hour, .minute, .second], from: date)

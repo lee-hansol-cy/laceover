@@ -54,6 +54,7 @@ final class LaceSaverView: ScreenSaverView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         state.viewSize = frame.size
+        if window != nil { state.showThumbnail() } else { state.thumbnailLive = false }
         if window != nil && isPreview {   // the sheet's thumbnail: the screen is still showing, ask for a still now
             DistributedNotificationCenter.default().postNotificationName(Settings.saverPrepareNotification, object: nil, deliverImmediately: true)
             waitForStill()
@@ -64,6 +65,7 @@ final class LaceSaverView: ScreenSaverView {
 
     override func startAnimation() {
         super.startAnimation()
+        state.animating = true
         state.viewSize = frame.size
         // macOS restarts the saver behind the lock screen when a key wakes a locked Mac: that run is the lock
         // screen's background — lace only (macOS shows its own clock), and no second sweep
@@ -81,6 +83,7 @@ final class LaceSaverView: ScreenSaverView {
 
     override func stopAnimation() {
         super.stopAnimation()
+        state.animating = false
         inputTimer?.invalidate(); inputTimer = nil
         saverLog.notice("stopAnimation preview=\(self.isPreview) locked=\(LockWatch.locked)")
         if !isPreview && LockWatch.locked { LockWatch.behindLock = true }   // woken while locked: the lock screen follows
@@ -135,13 +138,28 @@ final class LaceSaverView: ScreenSaverView {
         // a new sheet each time: one kept from an earlier visit can be tied to a host System Settings has dropped
         sheet = nil
         let w = OptionsSheetWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 680), styleMask: [.titled], backing: .buffered, defer: false)
-        saverLog.notice("configureSheet: new window")
         w.contentView = NSHostingView(rootView: SaverOptions(state: state, close: { [weak w] in
             guard let w else { return }
             Self.endSheet(w)
         }))
         sheet = w
-        watchSheet(w)
+        // The sheet goes on the window System Settings put this preview in. macOS 27 only shows that window when
+        // it loaded the saver afresh for this Screen Saver panel; a saver it kept from an earlier visit gets a preview
+        // window that never reaches the screen, and a sheet on it can't appear. The app marks the Screen Savers folder
+        // changed whenever a preview starts, so the next visit loads afresh. Until then: the app's settings window,
+        // the same controls, at once.
+        guard window?.isVisible == true else {
+            saverLog.notice("configureSheet: preview window \(self.window?.windowNumber ?? -1) is not on screen; opening the app")
+            DispatchQueue.main.async { [weak self, weak w] in
+                if let w { Self.endSheet(w) }          // let System Settings finish its request, so Options… keeps answering
+                self?.sheet = nil
+                let open = NSWorkspace.OpenConfiguration()
+                open.activates = true
+                NSWorkspace.shared.open(URL(string: "osglaceclock://settings")!, configuration: open)
+            }
+            return w
+        }
+        saverLog.notice("configureSheet: on window \(self.window?.windowNumber ?? -1)")
         return w
     }
 
@@ -151,24 +169,6 @@ final class LaceSaverView: ScreenSaverView {
         saverLog.notice("configureSheet: close parent=\(w.sheetParent?.windowNumber ?? -1)")
         if let parent = w.sheetParent { parent.endSheet(w, returnCode: .OK) } else { NSApp.endSheet(w, returnCode: NSApplication.ModalResponse.OK.rawValue) }
         w.orderOut(nil)
-    }
-
-    /// macOS 27 sometimes hangs the sheet on a preview window System Settings no longer shows (after the Screen
-    /// Saver panel was closed and opened again): the sheet never reaches the screen, and since the host still holds
-    /// it, every later Options… click is ignored. A sheet that hasn't been on screen within a few seconds is ended
-    /// here, and the app's own settings window — the same controls — opens instead.
-    private func watchSheet(_ w: NSWindow, tries: Int = 8) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self, weak w] in
-            guard let self, let w, self.sheet === w, w.isVisible else { return }   // closed already
-            if w.occlusionState.contains(.visible) { return }                          // on screen: all good
-            guard tries <= 1 else { self.watchSheet(w, tries: tries - 1); return }
-            saverLog.notice("configureSheet: never reached the screen (parent=\(w.sheetParent?.windowNumber ?? -1)); opening the app instead")
-            Self.endSheet(w)
-            self.sheet = nil
-            let open = NSWorkspace.OpenConfiguration()
-            open.activates = true
-            NSWorkspace.shared.open(URL(string: "osglaceclock://settings")!, configuration: open)
-        }
     }
 
     @objc private func freezeArrived() {
@@ -252,7 +252,7 @@ private struct SaverOptions: View {
 @Observable @MainActor
 final class SaverState {
     let lace: LaceLibrary
-    var settings: Settings { didSet { if settings != oldValue { lace.sync(to: settings) } } }
+    var settings: Settings { didSet { if settings != oldValue { lace.sync(to: settings); if !animating { showThumbnail() } } } }
     var backdrop: CGImage?
     var revealAt: CFTimeInterval = 0   // when this run's sweep began (shared by every stage this run makes)
     var hasFreshStill = false
@@ -260,6 +260,24 @@ final class SaverState {
     var isPreview = false
     var clockHidden = false         // the lock screen is up with its own clock
     var revealed = false            // the sweep runs once per screen-saver run, however many times start is called
+    /// Between startAnimation and stopAnimation: a run, drawn throughout.
+    var animating = false
+    /// macOS 27 also makes instances it never starts — the Screen Saver panel's thumbnail, and one kept ready for
+    /// the next run — and leaves them on their windows long after anyone can see them, with nothing to tell them
+    /// apart from here. Those are drawn for a minute after they appear or anything changes, then held still.
+    var thumbnailLive = false
+    private var thumbnailTurn = 0
+    var drawing: Bool { animating || thumbnailLive }
+
+    func showThumbnail() {
+        thumbnailLive = true
+        thumbnailTurn += 1
+        let turn = thumbnailTurn
+        DispatchQueue.main.asyncAfter(deadline: .now() + 60) { [weak self] in
+            guard let self, self.thumbnailTurn == turn else { return }
+            self.thumbnailLive = false
+        }
+    }
     var tile: CGImage? { lace.tile }
     /// What the stage draws: the settings, minus the clock while the lock screen shows its own.
     var shownSettings: Settings { var s = settings; if clockHidden { s.clockEnabled = false }; return s }
@@ -310,7 +328,7 @@ private struct SaverRoot: View {
         GeometryReader { geo in
             StageView(settings: state.shownSettings, tile: state.tile, tileID: state.tileID, backdrop: state.backdrop,
                       referenceHeight: geo.size.height < 400 ? (NSScreen.main?.frame.height ?? 1000) : nil,
-                      revealAt: state.revealAt)
+                      revealAt: state.revealAt, paused: !state.drawing)
         }
         .ignoresSafeArea()
     }

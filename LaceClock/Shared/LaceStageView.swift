@@ -17,6 +17,9 @@ struct StageInputs {
     var revealAt: CFTimeInterval
     /// The screen-saver run is over: stop drawing (nothing keeps running in the background).
     var paused = false
+    /// Stop drawing while the window isn't on screen (closed, minimised, covered, on another Space). Only for the
+    /// app's own windows: inside the screen-saver host a window that is showing can report itself as hidden.
+    var pausesWhenHidden = false
 }
 
 final class LaceStageView: MTKView, MTKViewDelegate {
@@ -75,11 +78,35 @@ final class LaceStageView: MTKView, MTKViewDelegate {
         delegate = self
     }
     required init(coder: NSCoder) { fatalError() }
+    deinit { if let o = occlusionObserver { NotificationCenter.default.removeObserver(o) } }
 
     // MARK: inputs
 
+    /// MTKView draws from a display link that runs whether or not the window is on screen; left alone, a closed
+    /// settings window would keep drawing the lace 30 times a second for as long as the app runs.
+    private var wantsPause = false, pausesWhenHidden = false
+    private var occlusionObserver: NSObjectProtocol?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let o = occlusionObserver { NotificationCenter.default.removeObserver(o); occlusionObserver = nil }
+        if let w = window {
+            occlusionObserver = NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: w, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.applyPause() }
+            }
+        }
+        applyPause()
+    }
+
+    private func applyPause() {
+        let hidden = pausesWhenHidden && !(window?.occlusionState.contains(.visible) ?? false)
+        isPaused = wantsPause || hidden
+    }
+
     func update(_ inp: StageInputs) {
-        isPaused = inp.paused
+        wantsPause = inp.paused
+        pausesWhenHidden = inp.pausesWhenHidden
+        applyPause()
         guard let dev = device, inp.canvas.width > 1, inp.canvas.height > 1 else { return }
         inputs = inp
         let s = inp.settings
