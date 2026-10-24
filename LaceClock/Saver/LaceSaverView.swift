@@ -138,10 +138,37 @@ final class LaceSaverView: ScreenSaverView {
         saverLog.notice("configureSheet: new window")
         w.contentView = NSHostingView(rootView: SaverOptions(state: state, close: { [weak w] in
             guard let w else { return }
-            if let parent = w.sheetParent { parent.endSheet(w) } else { w.close() }
+            Self.endSheet(w)
         }))
         sheet = w
+        watchSheet(w)
         return w
+    }
+
+    /// Ends the sheet in this host; System Settings drops its side when the host does. Ordered out as well: a
+    /// sheet left on screen keeps the host's sheet slot taken, and then Options… does nothing.
+    private static func endSheet(_ w: NSWindow) {
+        saverLog.notice("configureSheet: close parent=\(w.sheetParent?.windowNumber ?? -1)")
+        if let parent = w.sheetParent { parent.endSheet(w, returnCode: .OK) } else { NSApp.endSheet(w, returnCode: NSApplication.ModalResponse.OK.rawValue) }
+        w.orderOut(nil)
+    }
+
+    /// macOS 27 sometimes hangs the sheet on a preview window System Settings no longer shows (after the Screen
+    /// Saver panel was closed and opened again): the sheet never reaches the screen, and since the host still holds
+    /// it, every later Options… click is ignored. A sheet that hasn't been on screen within a few seconds is ended
+    /// here, and the app's own settings window — the same controls — opens instead.
+    private func watchSheet(_ w: NSWindow, tries: Int = 8) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self, weak w] in
+            guard let self, let w, self.sheet === w, w.isVisible else { return }   // closed already
+            if w.occlusionState.contains(.visible) { return }                          // on screen: all good
+            guard tries <= 1 else { self.watchSheet(w, tries: tries - 1); return }
+            saverLog.notice("configureSheet: never reached the screen (parent=\(w.sheetParent?.windowNumber ?? -1)); opening the app instead")
+            Self.endSheet(w)
+            self.sheet = nil
+            let open = NSWorkspace.OpenConfiguration()
+            open.activates = true
+            NSWorkspace.shared.open(URL(string: "osglaceclock://settings")!, configuration: open)
+        }
     }
 
     @objc private func freezeArrived() {

@@ -22,8 +22,8 @@ targets:
       path: LaceClock/Info.plist
       properties:
         CFBundleDisplayName: LaceOver
-        CFBundleShortVersionString: "1.0.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "1.0.1"
+        CFBundleVersion: "2"
         LSUIElement: true               # no Dock icon or menu bar item unless the settings window is open
         LSApplicationCategoryType: public.app-category.lifestyle
         CFBundleURLTypes:
@@ -59,8 +59,8 @@ targets:
       path: LaceClock/Saver/Info.plist
       properties:
         CFBundleDisplayName: LaceOver
-        CFBundleShortVersionString: "1.0.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "1.0.1"
+        CFBundleVersion: "2"
         NSPrincipalClass: OSGLaceSaverView
     settings:
       base:
@@ -69,3 +69,4 @@ targets:
         PRODUCT_MODULE_NAME: OSGLaceClockSaver
         WRAPPER_EXTENSION: saver
         INSTALL_PATH: "$(HOME)/Library/Screen Savers"
+        COMBINE_HIDPI_IMAGES: NO          # keep thumbnail.png + thumbnail@2x.png, as the system's own savers ship them

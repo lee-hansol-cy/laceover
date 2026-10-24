@@ -194,8 +194,13 @@ struct UpdateStatus: View {
         if let r = u.available {
             Button("새 버전 v\(r.version) 받기") { u.open(r) }.buttonStyle(.glassProminent)
         } else {
-            Button(u.checking ? "확인 중…" : "업데이트 확인") { u.check() }
+            Button(u.checking ? "확인 중…" : "업데이트 확인") { u.check(manual: true) }
                 .buttonStyle(.glass).tint(nil).disabled(u.checking)
+            switch u.outcome {
+            case .upToDate: Text("현재 최신 버전입니다").font(.callout).foregroundStyle(.secondary)
+            case .failed: Text("업데이트를 확인하지 못했습니다").font(.callout).foregroundStyle(.secondary)
+            case nil: EmptyView()
+            }
         }
     }
 }

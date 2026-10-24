@@ -11,6 +11,9 @@ final class UpdateChecker {
     struct Release { let version: String; let page: URL; let dmg: URL? }
     private(set) var available: Release?
     private(set) var checking = false
+    /// The answer to a check asked for with the button (nil until then, and while it runs).
+    enum Outcome { case upToDate, failed }
+    private(set) var outcome: Outcome?
     @ObservationIgnored private var timer: Timer?
 
     var current: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0" }
@@ -21,9 +24,10 @@ final class UpdateChecker {
         }
     }
 
-    func check() {
+    func check(manual: Bool = false) {
         guard !checking else { return }
         checking = true
+        if manual { outcome = nil }
         Task {
             defer { checking = false }
             var req = URLRequest(url: URL(string: "https://api.github.com/repos/\(Self.repo)/releases/latest")!)
@@ -31,12 +35,16 @@ final class UpdateChecker {
             guard let (data, resp) = try? await URLSession.shared.data(for: req),
                   (resp as? HTTPURLResponse)?.statusCode == 200,
                   let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let tag = j["tag_name"] as? String, let page = (j["html_url"] as? String).flatMap(URL.init(string:)) else { return }
+                  let tag = j["tag_name"] as? String, let page = (j["html_url"] as? String).flatMap(URL.init(string:)) else {
+                if manual { outcome = .failed }
+                return
+            }
             let v = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
             let dmg = (j["assets"] as? [[String: Any]])?
                 .first { ($0["name"] as? String)?.hasSuffix(".dmg") == true }
                 .flatMap { ($0["browser_download_url"] as? String).flatMap(URL.init(string:)) }
             available = Self.newer(v, than: current) ? Release(version: v, page: page, dmg: dmg) : nil
+            if manual { outcome = available == nil ? .upToDate : nil }
             if let a = available, Self.lastNotified != a.version { Self.lastNotified = a.version; notify(a) }
         }
     }

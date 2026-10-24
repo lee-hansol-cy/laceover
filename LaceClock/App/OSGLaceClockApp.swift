@@ -53,6 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         NSApp.activate()
         window?.makeKeyAndOrderFront(nil)
+        // asked for from System Settings (the screen saver's Options… fallback), macOS may not let the app come
+        // forward over it; the window still goes on top, where it can be seen and clicked
+        window?.orderFrontRegardless()
     }
 
     /// The stills need the app running whenever the screen saver may start, so it opens at login.
