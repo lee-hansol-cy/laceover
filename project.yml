@@ -1,0 +1,71 @@
+name: OSGLaceClock
+options:
+  bundleIdPrefix: com.osg
+  deploymentTarget:
+    macOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    CODE_SIGNING_ALLOWED: NO      # run.sh signs with the local "OSG Lace Clock Dev" identity (stable → TCC permissions survive rebuilds)
+    CODE_SIGN_STYLE: Manual
+    ENABLE_HARDENED_RUNTIME: NO
+targets:
+  OSGLaceClock:
+    type: application
+    platform: macOS
+    sources:
+      - path: LaceClock
+        excludes:
+          - "Saver/**"
+    info:
+      path: LaceClock/Info.plist
+      properties:
+        CFBundleDisplayName: LaceOver
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        LSUIElement: true               # no Dock icon or menu bar item unless the settings window is open
+        LSApplicationCategoryType: public.app-category.lifestyle
+        CFBundleURLTypes:
+          - CFBundleURLName: com.osg.laceclock.settings
+            CFBundleURLSchemes: [osglaceclock]
+        NSScreenCaptureUsageDescription: 화면 보호기가 켜질 때 지금 보고 있던 화면을 그대로 멈춰 두고 그 위에 레이스를 덮기 위해 화면을 한 장 캡처합니다.
+    dependencies:
+      - target: OSGLaceClockSaver
+        embed: true
+        codeSign: false
+        copy:
+          destination: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.osg.laceclock
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        PRODUCT_NAME: LaceOver
+        PRODUCT_MODULE_NAME: OSGLaceClock
+  OSGLaceClockSaver:
+    type: bundle
+    platform: macOS
+    sources:
+      - LaceClock/Shared
+      - LaceClock/Saver
+      - LaceClock/Engine/LaceMaker          # the Lacemaker engine: the Options sheet weaves too
+      - path: LaceClock/Resources
+        buildPhase: resources
+        excludes:
+          - "lace_lilyOfTheValley.png"       # the other sheets come from the app's shared folder copies
+          - "lace_peony.png"
+          - "lace_wisteria.png"
+    info:
+      path: LaceClock/Saver/Info.plist
+      properties:
+        CFBundleDisplayName: LaceOver
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        NSPrincipalClass: OSGLaceSaverView
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.osg.laceclock.saver
+        PRODUCT_NAME: LaceOver
+        PRODUCT_MODULE_NAME: OSGLaceClockSaver
+        WRAPPER_EXTENSION: saver
+        INSTALL_PATH: "$(HOME)/Library/Screen Savers"

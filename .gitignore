@@ -1,0 +1,8 @@
+.DS_Store
+build/
+dist/
+design/
+OSGLaceClock.xcodeproj/
+xcuserdata/
+# OSG Capsules is Lee HanSol's own typeface: not redistributed here (the clock falls back to SF Pro without it)
+LaceClock/Resources/OSGCapsules-VF.ttf
