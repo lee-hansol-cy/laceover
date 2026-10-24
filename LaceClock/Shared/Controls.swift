@@ -10,7 +10,7 @@ let glassBlue = Color(red: 0.0, green: 0.47, blue: 1.0)
 
 /// The iOS 26 segmented control, matched frame by frame to a recording of the real one (UIKit on this Mac):
 /// at rest a blue-tinted Liquid Glass pill on a light track; pressed, the pill becomes a near-clear glass lens ~13% wider and ~1.5×
-/// taller than the track (spilling over it), bright rim, rainbow refraction at the ends, soft shadow; it glides to the
+/// taller than the track (spilling over it), rainbow refraction at the ends, soft shadow; it glides to the
 /// pointer (also when pressed on another segment) and follows it; released, it settles on that segment and only
 /// then turns into the blue chosen pill.
 struct GlassChoice<T: Hashable>: View {
@@ -55,8 +55,7 @@ struct GlassChoice<T: Hashable>: View {
                     .opacity(lens ? 0 : 1)
                 Color.clear
                     .frame(width: gw, height: gh)
-                    .glassEffect(.clear.interactive(), in: .capsule)
-                    .overlay { Capsule().strokeBorder(.white.opacity(0.9), lineWidth: 1) }   // the bright rim iOS shows
+                    .glassEffect(.clear.interactive(), in: .capsule)      // the glass draws its own edge light
                     .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
                     .opacity(lens ? 1 : 0)
             }
