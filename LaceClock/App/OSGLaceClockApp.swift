@@ -22,16 +22,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = AppModel.shared
         registerLoginItem()
         UpdateChecker.shared.check()
-        // launched by the login item: stay hidden; launched by a person: show the settings
-        if !Self.launchedAtLogin { showSettings() }
+        SaverInstaller.markChanged()          // the next visit to the Screen Saver panel loads the saver afresh
+        // launched by a person: show the settings; at login, or started in the background by the saver: stay hidden
+        if Self.launchedByPerson { showSettings() }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showSettings(); return false
     }
 
+    /// osglaceclock://settings opens the settings; osglaceclock://background only makes sure the app is running.
     func application(_ application: NSApplication, open urls: [URL]) {
-        if urls.contains(where: { $0.scheme == "osglaceclock" }) { showSettings() }
+        if urls.contains(where: { $0.scheme == "osglaceclock" && $0.host != "background" }) { showSettings() }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -64,9 +66,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if svc.status != .enabled { try? svc.register() }
     }
 
-    private static var launchedAtLogin: Bool {
+    private static var launchedByPerson: Bool {
         // a login-item launch has no Apple Event behind it; a Finder/Dock/open launch does
-        guard let e = NSAppleEventManager.shared().currentAppleEvent else { return true }
-        return e.eventID == kAEOpenApplication && e.paramDescriptor(forKeyword: keyAELaunchedAsLogInItem)?.typeCodeValue == keyAELaunchedAsLogInItem
+        guard let e = NSAppleEventManager.shared().currentAppleEvent else { return false }
+        if e.eventID == kAEOpenApplication && e.paramDescriptor(forKeyword: keyAELaunchedAsLogInItem)?.typeCodeValue == keyAELaunchedAsLogInItem { return false }
+        if e.eventID == kAEGetURL { return false }        // started by a link: application(_:open:) decides
+        // macOS reopening the last session's apps at login looks like a person's launch; a window popping up then
+        // gets quit, and the saver loses the app it needs. The Dock starts with the session: just after it, stay hidden.
+        if let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first?.launchDate,
+           Date().timeIntervalSince(dock) < 90 { return false }
+        return true
     }
 }

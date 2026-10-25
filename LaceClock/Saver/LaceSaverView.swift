@@ -58,6 +58,9 @@ final class LaceSaverView: ScreenSaverView {
         if window != nil && isPreview {   // the sheet's thumbnail: the screen is still showing, ask for a still now
             DistributedNotificationCenter.default().postNotificationName(Settings.saverPrepareNotification, object: nil, deliverImmediately: true)
             waitForStill()
+            Self.wakeApp()
+            sheetAsked = false
+            watchHost()
         }
         saverLog.notice("moved to window=\(self.window.map { String(describing: type(of: $0)) } ?? "nil", privacy: .public) screen=\(self.window?.screen?.localizedName ?? "nil", privacy: .public)")
         state.reload(screen: window?.screen, preview: isPreview, reveal: false)
@@ -133,6 +136,25 @@ final class LaceSaverView: ScreenSaverView {
     // them from there, and changes made in the app arrive here the same way.
     override var hasConfigureSheet: Bool { true }
 
+    /// The app keeps the stills and marks the saver to be loaded afresh; if it was quit, start it, out of sight.
+    private static func wakeApp() {
+        guard NSRunningApplication.runningApplications(withBundleIdentifier: "com.osg.laceclock").isEmpty else { return }
+        let open = NSWorkspace.OpenConfiguration()
+        open.activates = false
+        NSWorkspace.shared.open(URL(string: "osglaceclock://background")!, configuration: open)
+    }
+
+    /// Whether System Settings showed this preview's window before any sheet was asked for. Asked afterwards the
+    /// window can't tell: putting a sheet on it orders it in, shown or not.
+    private var hostShown = false
+    private var sheetAsked = false
+    private func watchHost(_ tries: Int = 15) {
+        guard !sheetAsked else { return }
+        hostShown = window?.isVisible == true
+        guard !hostShown, tries > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.watchHost(tries - 1) }
+    }
+
     private var sheet: NSWindow?
     override var configureSheet: NSWindow? {
         // a new sheet each time: one kept from an earlier visit can be tied to a host System Settings has dropped
@@ -145,10 +167,11 @@ final class LaceSaverView: ScreenSaverView {
         sheet = w
         // The sheet goes on the window System Settings put this preview in. macOS 27 only shows that window when
         // it loaded the saver afresh for this Screen Saver panel; a saver it kept from an earlier visit gets a preview
-        // window that never reaches the screen, and a sheet on it can't appear. The app marks the Screen Savers folder
-        // changed whenever a preview starts, so the next visit loads afresh. Until then: the app's settings window,
-        // the same controls, at once.
-        guard window?.isVisible == true else {
+        // window that never reaches the screen, and a sheet on it can't appear (nor ever end, and then Options… stops
+        // answering). The app marks the Screen Savers folder changed when it starts and whenever a preview starts, so
+        // the next visit loads afresh. Until then: the app's settings window, the same controls, at once.
+        sheetAsked = true
+        guard hostShown else {
             saverLog.notice("configureSheet: preview window \(self.window?.windowNumber ?? -1) is not on screen; opening the app")
             DispatchQueue.main.async { [weak self, weak w] in
                 if let w { Self.endSheet(w) }          // let System Settings finish its request, so Options… keeps answering

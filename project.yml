@@ -22,8 +22,8 @@ targets:
       path: LaceClock/Info.plist
       properties:
         CFBundleDisplayName: LaceOver
-        CFBundleShortVersionString: "1.0.2"
-        CFBundleVersion: "3"
+        CFBundleShortVersionString: "1.0.3"
+        CFBundleVersion: "4"
         LSUIElement: true               # no Dock icon or menu bar item unless the settings window is open
         LSApplicationCategoryType: public.app-category.lifestyle
         CFBundleURLTypes:
@@ -59,8 +59,8 @@ targets:
       path: LaceClock/Saver/Info.plist
       properties:
         CFBundleDisplayName: LaceOver
-        CFBundleShortVersionString: "1.0.2"
-        CFBundleVersion: "3"
+        CFBundleShortVersionString: "1.0.3"
+        CFBundleVersion: "4"
         NSPrincipalClass: OSGLaceSaverView
     settings:
       base:

@@ -187,20 +187,33 @@ struct UpdateSection: View {
     }
 }
 
-/// On the about page: the update state, and a way to check now.
+/// On the about page: the update state, and a way to check now. Everything keeps its place while a check runs:
+/// the button is as wide as its widest label, and the answer's line is there (empty) before there is an answer.
 struct UpdateStatus: View {
     private let u = UpdateChecker.shared
     var body: some View {
-        if let r = u.available {
-            Button("새 버전 v\(r.version) 받기") { u.open(r) }.buttonStyle(.glassProminent)
-        } else {
-            Button(u.checking ? "확인 중…" : "업데이트 확인") { u.check(manual: true) }
+        VStack(spacing: 8) {
+            if let r = u.available {
+                Button("새 버전 v\(r.version) 받기") { u.open(r) }.buttonStyle(.glassProminent)
+            } else {
+                Button { u.check(manual: true) } label: {
+                    ZStack {
+                        Text("업데이트 확인").opacity(u.checking ? 0 : 1)
+                        Text("확인 중…").opacity(u.checking ? 1 : 0)
+                    }
+                }
                 .buttonStyle(.glass).tint(nil).disabled(u.checking)
-            switch u.outcome {
-            case .upToDate: Text("현재 최신 버전입니다").font(.callout).foregroundStyle(.secondary)
-            case .failed: Text("업데이트를 확인하지 못했습니다").font(.callout).foregroundStyle(.secondary)
-            case nil: EmptyView()
             }
+            Text(answer ?? " ").font(.callout).foregroundStyle(.secondary).opacity(answer == nil ? 0 : 1)
+        }
+    }
+
+    private var answer: String? {
+        guard u.available == nil else { return nil }
+        switch u.outcome {
+        case .upToDate: return "현재 최신 버전입니다"
+        case .failed: return "업데이트를 확인하지 못했습니다"
+        case nil: return nil
         }
     }
 }

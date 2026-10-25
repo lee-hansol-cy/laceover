@@ -322,10 +322,10 @@ struct WeaveSections: View {
                 }
             }
             Section("원단 직조") {
-                slider("메쉬 촘촘함", $settings.lace.dens, 0.66...1.2, ticks: [(0.66, "성기게"), (0.8, ""), (0.93, "기본"), (1.06, ""), (1.2, "촘촘")])
+                slider("메쉬 촘촘함", $settings.lace.dens, 0.66...1.2, ticks: [(0.66, "성기게"), (0.8, ""), (0.93, "기본"), (1.06, ""), (1.2, "촘촘하게")])
                 slider("실 굵기", $settings.lace.yarn, 0.9...2.1, ticks: [(0.9, "가늘게"), (1.2, ""), (1.5, "기본"), (1.8, ""), (2.1, "굵게")])
-                slider("당겨짐", $settings.lace.pull, 6...56, ticks: [(6, "느슨"), (18, ""), (31, "기본"), (43, ""), (56, "팽팽")])
-                slider("모서리 질감", $settings.lace.hand, 0...14, ticks: [(0, "매끈"), (3.5, ""), (7, "기본"), (10.5, ""), (14, "거칠게")])
+                slider("당겨짐", $settings.lace.pull, 6...56, ticks: [(6, "느슨하게"), (18, ""), (31, "기본"), (43, ""), (56, "팽팽하게")])
+                slider("모서리 질감", $settings.lace.hand, 0...14, ticks: [(0, "매끈하게"), (3.5, ""), (7, "기본"), (10.5, ""), (14, "거칠게")])
             }
             Section("모티프") {
                 ChoiceRow(title: "채움", selection: $settings.lace.fill, options: [(0, "성글게"), (1, "중간"), (2, "빽빽하게")])
@@ -351,7 +351,7 @@ struct CoverSections: View {
         }
         Section("레이스") {
             slider("크기", $settings.laceScale, 0.3...2, ticks: [(0.5, "작게"), (1, "화면 폭 (1×)"), (1.5, ""), (2, "크게")])
-            slider("불투명도", $settings.laceOpacity, 0.2...1, ticks: [(0.4, "옅게"), (0.6, ""), (0.8, ""), (1, "선명")])
+            slider("불투명도", $settings.laceOpacity, 0.2...1, ticks: [(0.4, "옅게"), (0.6, ""), (0.8, ""), (1, "선명하게")])
         }
         Section("쓰던 화면") {
             Toggle("블러", isOn: $settings.backdropBlur)
